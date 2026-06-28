@@ -49,7 +49,7 @@ const TEXT_FILE_NAMES = new Set([
   'vite.config.js',
 ])
 
-type FileLike = {
+export type ImportableFile = {
   name: string
   size: number
   lastModified?: number
@@ -105,17 +105,16 @@ export function isTextProjectFile(path: string, size: number): boolean {
   return TEXT_FILE_NAMES.has(fileName) || TEXT_EXTENSIONS.has(extension)
 }
 
-export async function importFileList(files: FileList | File[]): Promise<ImportResult> {
+export async function importFileList(files: FileList | ImportableFile[]): Promise<ImportResult> {
   const entries: RawEntry[] = Array.from(files).map((file) => {
-    const fileLike = file as FileLike
-    const relativePath = fileLike.webkitRelativePath || fileLike.name
+    const relativePath = file.webkitRelativePath || file.name
 
     return {
       path: normalizeProjectPath(relativePath),
-      name: fileLike.name,
-      size: fileLike.size,
-      lastModified: fileLike.lastModified ?? Date.now(),
-      text: () => fileLike.text(),
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified ?? Date.now(),
+      text: () => file.text(),
     }
   })
 
@@ -165,8 +164,8 @@ export async function importGitHubRepository(repoUrl: string): Promise<ImportRes
     throw new Error(`GitHub import failed with ${response.status}.`)
   }
 
-  const blob = await response.blob()
-  const file = new File([blob], `${repo.name}.zip`, { type: 'application/zip' })
+  const archive = await response.arrayBuffer()
+  const file = new File([archive], `${repo.name}.zip`, { type: 'application/zip' })
   const result = await importZipFile(file)
 
   return {
@@ -187,9 +186,10 @@ export async function importGitHubRepository(repoUrl: string): Promise<ImportRes
 
 export function parseGitHubRepo(value: string): { owner: string; name: string } | null {
   const trimmed = value.trim()
-  const match = trimmed.match(
-    /^(?:https?:\/\/github\.com\/|git@github\.com:)?([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:\/.*)?$/,
-  )
+  const sshMatch = trimmed.match(/^git@github\.com:([\w.-]+)\/([\w.-]+?)(?:\.git)?$/)
+  const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)(?:\.git)?(?:\/.*)?$/)
+  const shorthandMatch = trimmed.match(/^([\w.-]+)\/([\w.-]+)(?:\.git)?$/)
+  const match = sshMatch ?? urlMatch ?? shorthandMatch
 
   if (!match) return null
 

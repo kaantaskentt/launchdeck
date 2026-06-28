@@ -13,6 +13,7 @@ import {
   TerminalSquare,
   X,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import type { Project, ProjectFile } from '../types'
 import { createPreviewDocument } from '../lib/projectImport'
 
@@ -36,6 +37,37 @@ export function Workspace({
   const activeFile = project.files.find((file) => file.path === activeFilePath) ?? project.files[0]
   const previewDocument = createPreviewDocument(project, activeFile.path, previewAllowsScripts)
   const folders = buildExplorer(project.files)
+  const [previewVersion, setPreviewVersion] = useState(0)
+  const [editorClosed, setEditorClosed] = useState(false)
+  const [workspaceMessage, setWorkspaceMessage] = useState('Workspace ready')
+
+  useEffect(() => {
+    setEditorClosed(false)
+    setWorkspaceMessage('Workspace ready')
+  }, [activeFile.path, project.id])
+
+  const refreshPreview = () => {
+    setPreviewVersion((current) => current + 1)
+    setWorkspaceMessage('Preview refreshed')
+  }
+
+  const confirmLocalSave = () => {
+    setWorkspaceMessage('Saved locally')
+  }
+
+  const popOutPreview = () => {
+    const previewUrl = URL.createObjectURL(new Blob([previewDocument], { type: 'text/html' }))
+    const openedWindow = window.open(previewUrl, '_blank')
+
+    if (openedWindow) {
+      openedWindow.opener = null
+      setWorkspaceMessage('Preview opened in a new tab')
+    } else {
+      setWorkspaceMessage('Browser blocked the preview pop-out')
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(previewUrl), 30_000)
+  }
 
   return (
     <section className="workspace" aria-label={`${project.name} coding workspace`}>
@@ -46,7 +78,7 @@ export function Workspace({
           <span />
         </div>
         <div className="workspace-actions">
-          <button type="button">
+          <button type="button" onClick={refreshPreview}>
             <RefreshCw size={15} />
             Refresh
           </button>
@@ -58,7 +90,7 @@ export function Workspace({
             <ShieldCheck size={15} />
             {previewAllowsScripts ? 'JS Enabled' : 'Safe Preview'}
           </button>
-          <button type="button">
+          <button type="button" onClick={popOutPreview}>
             <ExternalLink size={15} />
             Pop out
           </button>
@@ -97,30 +129,45 @@ export function Workspace({
         </aside>
 
         <section className="editor-pane" aria-label="Code editor">
-          <div className="editor-tabs">
-            <span>
-              <FileCode2 size={14} />
-              {activeFile.name}
-            </span>
-            <button type="button" aria-label="Close tab">
-              <X size={14} />
-            </button>
-          </div>
-          <textarea
-            spellCheck={false}
-            aria-label={`${activeFile.name} editor`}
-            value={activeFile.content}
-            onChange={(event) => onUpdateFile(activeFile.path, event.target.value)}
-          />
-          <div className="editor-status">
-            <span>Ln 1, Col 1</span>
-            <span>{activeFile.language}</span>
-            <span>UTF-8</span>
-            <button type="button">
-              <Save size={14} />
-              Saved locally
-            </button>
-          </div>
+          {editorClosed ? (
+            <div className="editor-empty">
+              <FileCode2 size={18} />
+              <p>{activeFile.name} is closed.</p>
+              <button type="button" onClick={() => setEditorClosed(false)}>
+                Reopen file
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="editor-tabs">
+                <span>
+                  <FileCode2 size={14} />
+                  {activeFile.name}
+                </span>
+                <button type="button" aria-label="Close tab" onClick={() => setEditorClosed(true)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <textarea
+                spellCheck={false}
+                aria-label={`${activeFile.name} editor`}
+                value={activeFile.content}
+                onChange={(event) => {
+                  onUpdateFile(activeFile.path, event.target.value)
+                  setWorkspaceMessage('Unsaved local edits')
+                }}
+              />
+              <div className="editor-status">
+                <span>Ln 1, Col 1</span>
+                <span>{activeFile.language}</span>
+                <span>UTF-8</span>
+                <button type="button" onClick={confirmLocalSave}>
+                  <Save size={14} />
+                  Save locally
+                </button>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="preview-pane" aria-label="Live preview">
@@ -132,6 +179,7 @@ export function Workspace({
             <code>launchdeck://sandbox</code>
           </div>
           <iframe
+            key={`${activeFile.path}-${previewAllowsScripts}-${previewVersion}`}
             title={`${project.name} preview`}
             srcDoc={previewDocument}
             sandbox={previewAllowsScripts ? 'allow-scripts' : ''}
@@ -155,6 +203,9 @@ export function Workspace({
             <p>
               <ShieldCheck size={14} /> Sandbox ready with script execution{' '}
               {previewAllowsScripts ? 'enabled' : 'blocked'}
+            </p>
+            <p aria-live="polite">
+              <RefreshCw size={14} /> {workspaceMessage}
             </p>
             <p>
               <Bug size={14} /> Static checks completed for secrets, license, README, and lockfiles

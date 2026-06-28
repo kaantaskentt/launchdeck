@@ -32,6 +32,7 @@ export function ImportStrip({
       <div className="import-copy">
         <h1>Import your project to get started</h1>
         <p>Drag in a folder, select a local directory, import a zip, or pull a public GitHub repo.</p>
+        {isImporting ? <p className="import-status">Indexing project locally...</p> : null}
         {importReport ? (
           <p className="import-report">
             Imported {importReport.importedFiles} files from {importReport.rootName}
@@ -44,7 +45,7 @@ export function ImportStrip({
       <div className="import-actions">
         <button className="primary-button" type="button" onClick={onPickFolder} disabled={isImporting}>
           <UploadCloud size={17} />
-          Import Folder
+          {isImporting ? 'Importing...' : 'Import Folder'}
         </button>
         <button className="secondary-button" type="button" onClick={onPickZip} disabled={isImporting}>
           <ShieldCheck size={17} />

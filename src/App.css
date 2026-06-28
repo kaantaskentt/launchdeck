@@ -305,6 +305,12 @@ kbd {
   font-weight: 700;
 }
 
+.import-status {
+  margin-top: 7px !important;
+  color: #1d4ed8 !important;
+  font-weight: 800;
+}
+
 .import-error {
   margin-top: 7px;
   color: #b45309 !important;
@@ -428,7 +434,27 @@ kbd {
   gap: 8px;
 }
 
+.project-list--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.project-list--grid .project-row--head {
+  display: none;
+}
+
+.project-list--grid .project-row {
+  grid-template-columns: 1fr;
+  align-items: start;
+  min-height: 168px;
+}
+
+.project-list--grid .project-actions {
+  justify-content: flex-start;
+}
+
 .project-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(168px, 1.55fr) 76px minmax(132px, 1fr) minmax(88px, 0.78fr) 78px;
   align-items: center;
@@ -544,6 +570,44 @@ kbd {
   border-color: transparent;
   color: #64748b;
   background: transparent;
+}
+
+.row-menu-popover {
+  position: absolute;
+  top: 48px;
+  right: 10px;
+  z-index: 12;
+  display: grid;
+  min-width: 168px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+
+.row-menu-popover button {
+  border: 0;
+  padding: 10px 12px;
+  background: transparent;
+  color: #172033;
+  font: 750 13px var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-menu-popover button:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.project-empty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  color: #64748b;
+  background: #fff;
+  font-weight: 750;
 }
 
 .text-link {
@@ -706,6 +770,43 @@ kbd {
   color: #64748b;
   font-size: 13px;
   font-weight: 700;
+}
+
+.activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-list div,
+.settings-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.activity-list strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.activity-list p,
+.settings-panel p {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.activity-list small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 10px;
 }
 
 .preview-card {
@@ -893,6 +994,32 @@ kbd {
 
 .editor-pane textarea:focus {
   outline: none;
+}
+
+.editor-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: #a7b7ca;
+  background: #081322;
+  text-align: center;
+}
+
+.editor-empty p {
+  margin: 0;
+  font-weight: 750;
+}
+
+.editor-empty button {
+  border: 1px solid #1f3550;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: #dbeafe;
+  background: #0b1726;
+  font: 750 12px var(--font-sans);
+  cursor: pointer;
 }
 
 .editor-status {

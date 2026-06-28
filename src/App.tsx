@@ -8,9 +8,26 @@ import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { Workspace } from './components/Workspace'
 import { sampleProjects } from './data/sampleProjects'
-import { importFileList, importGitHubRepository, importZipFile } from './lib/projectImport'
+import { importFileList, importGitHubRepository, importZipFile, type ImportableFile } from './lib/projectImport'
 import { loadStoredProjects, saveStoredProjects } from './lib/persistence'
 import type { ImportReport, Project } from './types'
+
+type FileSystemFileHandleLike = {
+  kind: 'file'
+  name: string
+  getFile: () => Promise<File>
+}
+
+type FileSystemDirectoryHandleLike = {
+  kind: 'directory'
+  name: string
+  values: () => AsyncIterable<FileSystemFileHandleLike | FileSystemDirectoryHandleLike>
+}
+
+type WindowWithDirectoryPicker = Window &
+  typeof globalThis & {
+    showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandleLike>
+  }
 
 function App() {
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -76,6 +93,8 @@ function App() {
         const result = await importer()
         addImportedProject(result.project, result.report)
       } catch (error) {
+        if (isUserAbortError(error)) return
+
         setImportError(error instanceof Error ? error.message : 'Import failed. Try another project.')
       } finally {
         setIsImporting(false)
@@ -83,6 +102,21 @@ function App() {
     },
     [addImportedProject],
   )
+
+  const handlePickFolder = useCallback(() => {
+    const showDirectoryPicker = (window as WindowWithDirectoryPicker).showDirectoryPicker
+
+    if (!showDirectoryPicker) {
+      folderInputRef.current?.click()
+      return
+    }
+
+    void runImport(async () => {
+      const directoryHandle = await showDirectoryPicker({ mode: 'read' })
+      const files = await collectDirectoryFiles(directoryHandle)
+      return importFileList(files)
+    })
+  }, [runImport])
 
   const handleFolderChange = (files: FileList | null) => {
     if (!files?.length) return
@@ -144,7 +178,7 @@ function App() {
       />
 
       <main className="app-main">
-        <TopBar onImport={() => folderInputRef.current?.click()} onOpenCommandPalette={() => setCommandOpen(true)} />
+        <TopBar onImport={handlePickFolder} onOpenCommandPalette={() => setCommandOpen(true)} />
 
         <div className="content-grid">
           <div className="primary-column">
@@ -154,7 +188,7 @@ function App() {
               githubUrl={githubUrl}
               error={importError}
               onGithubUrlChange={setGithubUrl}
-              onPickFolder={() => folderInputRef.current?.click()}
+              onPickFolder={handlePickFolder}
               onPickZip={() => zipInputRef.current?.click()}
               onImportGithub={() => void runImport(() => importGitHubRepository(githubUrl))}
               onDismissReport={() => setImportReport(undefined)}
@@ -222,11 +256,42 @@ function App() {
         isOpen={isCommandOpen}
         projects={projects}
         onClose={() => setCommandOpen(false)}
-        onImport={() => folderInputRef.current?.click()}
+        onImport={handlePickFolder}
         onOpenProject={handleOpenWorkspace}
       />
     </div>
   )
+}
+
+async function collectDirectoryFiles(
+  directoryHandle: FileSystemDirectoryHandleLike,
+  parentPath = directoryHandle.name,
+): Promise<ImportableFile[]> {
+  const files: ImportableFile[] = []
+
+  for await (const entry of directoryHandle.values()) {
+    const entryPath = `${parentPath}/${entry.name}`
+
+    if (entry.kind === 'directory') {
+      files.push(...(await collectDirectoryFiles(entry, entryPath)))
+      continue
+    }
+
+    const file = await entry.getFile()
+    files.push({
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+      webkitRelativePath: entryPath,
+      text: () => file.text(),
+    })
+  }
+
+  return files
+}
+
+function isUserAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 export default App
